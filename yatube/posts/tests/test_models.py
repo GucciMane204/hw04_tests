@@ -7,15 +7,12 @@ class PostModelTest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # Создаем тестового пользователя
         cls.user = User.objects.create_user(username='username')
-        # Создаем тестовую группу
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='Тестовый слаг',
             description='Тестовое описание',
         )
-        # Создаем тестовый пост
         cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый пост, длина символов больше пятнадцати',

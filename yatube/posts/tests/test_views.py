@@ -1,8 +1,7 @@
 from django import forms
+from django.conf import settings
 from django.test import Client, TestCase
 from django.urls import reverse
-from django.conf import settings
-
 from posts.models import Group, Post, User
 
 
@@ -10,39 +9,30 @@ class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # Создаем тестового пользователя-автора
         cls.user_author = User.objects.create_user(username='Author')
-        # Создаем тестовую группу
         cls.group = Group.objects.create(
             title="Тестовая группа",
             slug="Test_slag",
             description="Тестовое описание",
         )
-        # Создаем тестовый пост с группой
         cls.post = Post.objects.create(
             text="Тестовый пост", author=cls.user_author, group=cls.group
         )
-        # Создаем тестовый пост, но без группы
         cls.post_1 = Post.objects.create(
             text='Пост без группы',
             author=cls.user_author,
-            # group=cls.group
         )
-        # Создаем еще один тестовый пост с группой
         cls.post_2 = Post.objects.create(
             text='Еще один пост', author=cls.user_author, group=cls.group
         )
 
     def setUp(self):
-        # Создаём неавторизованный клиент
         self.guest_client = Client()
-        # Создаём клиент для авторизации тестовым пользователем-автором
         self.author_client = Client()
         self.author_client.force_login(PostPagesTests.user_author)
 
     def test_pages_uses_correct_template(self):
         """Тестируем, что URL-адрес использует соответствующий шаблон."""
-        # Собираем в словарь пары "имя_html_шаблона: reverse(name)"
         templates_page_names = {
             reverse('posts:index'): 'posts/index.html',
             reverse(
@@ -79,9 +69,6 @@ class PostPagesTests(TestCase):
                 'posts:group_list', kwargs={'slug': PostPagesTests.group.slug}
             )
         )
-        # Проверяем, что в контексте страницы содержится
-        # ожидаемый список постов, отфильтрованных по группе,
-        # т.е. два кварисета из БД соответствуют друг другу
         expected_posts = Post.objects.filter(group=PostPagesTests.group)
         posts_in_context = response.context['page_obj'].object_list
         self.assertQuerysetEqual(
@@ -96,8 +83,6 @@ class PostPagesTests(TestCase):
                 kwargs={'username': PostPagesTests.user_author},
             )
         )
-        # Проверяем, что в контексте страницы содержится ожидаемый
-        # список постов, отфильтрованных по автору
         expected_posts = Post.objects.filter(author=PostPagesTests.post.author)
         posts_in_context = response.context['page_obj'].object_list
         self.assertQuerysetEqual(
@@ -117,8 +102,6 @@ class PostPagesTests(TestCase):
     def test_create_post_page_show_correct_context(self):
         """Тестируем шаблон создания поста"""
         response = self.author_client.get(reverse('posts:post_create'))
-        # Словарь ожидаемых типов полей формы:
-        # указываем, объектами какого класса должны быть поля формы
         form_fields = {
             'text': forms.fields.CharField,
             'group': forms.fields.ChoiceField,
@@ -143,7 +126,6 @@ class PostPagesTests(TestCase):
             with self.subTest(value=value):
                 form_field = response.context.get('form').fields.get(value)
                 self.assertIsInstance(form_field, expected)
-        # Проверяем, что поле содержит правильное значение
         self.assertEqual(
             response.context.get('form').initial.get('text'),
             PostPagesTests.post.text,
@@ -160,23 +142,24 @@ class PaginatorViewsTest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.posts = []
         cls.user_author = User.objects.create_user(username='Author')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test-slug',
             description='Тестовое описание',
         )
-        list_objs = list()
         for i in range(
             settings.NUMBER_OF_POSTS + settings.NUMBER_OF_POSTS_PAGE_TWO
         ):
-            list_objs.append(
-                Post.objects.create(
+            cls.posts.append(
+                Post(
                     author=cls.user_author,
                     text=f'Тест пост #{i+1}',
                     group=cls.group,
                 )
             )
+        Post.objects.bulk_create(cls.posts)
 
     def setUp(self):
         self.author_client = Client()

@@ -3,7 +3,6 @@ from http import HTTPStatus
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..forms import PostForm
 from ..models import Group, Post, User
 
 
@@ -20,46 +19,55 @@ class PostCreateFormTests(TestCase):
         cls.post = Post.objects.create(
             author=cls.user, text='Первый тестовый пост', group=cls.group
         )
-        cls.form = PostForm()
-
-    def setUp(self):
-        self.guest_client = Client()
-        self.authorized_client = Client()
-        self.authorized_client.force_login(PostCreateFormTests.user)
-
-    def test_create_post_authorized(self):
-        """Проверка что при отправке валидной формы со страницы создания
-        поста создаётся новая запись в базе данных;
-        """
-        # счетчик сейчас равен 1, т.к. мы создали всего 1 тестовый пост выше
-        post_count = Post.objects.count()
-        form_data = {
+        cls.post_count = Post.objects.count()
+        cls.form_data = {
             'group': PostCreateFormTests.group.id,
             'text': 'Тестовый текст',
         }
-        # делая post запрос автором мы как бы эмулируем нажатие
-        # кнопки на сайте "создать пост" и форма как будто бы
-        # заполняется соответсвующими значениями из словаря
-        response = self.authorized_client.post(
-            reverse('posts:post_create'), data=form_data
-        )
-        self.assertRedirects(
-            response,
-            reverse(
-                'posts:profile',
-                kwargs={'username': PostCreateFormTests.user.username},
-            ),
-        )
-        # Проверяем количество постов в базе
-        self.assertEqual(Post.objects.count(), post_count + 1)
-        # Проверяем что пост действительно существует в базе
-        self.assertTrue(
-            Post.objects.filter(
-                author=PostCreateFormTests.user,
-                group=PostCreateFormTests.group,
-                text='Тестовый текст',
-            ).exists()
-        )
+        cls.guest_client = Client()
+        cls.authorized_client = Client()
+        cls.authorized_client.force_login(PostCreateFormTests.user)
+
+    def test_create_post(self):
+        """Проверка создания поста гостем и
+        авторизованным пользователем.
+        """
+        clients = [self.guest_client, self.authorized_client]
+        expected_post_count = [self.post_count, self.post_count + 1]
+        for i in range(len(clients)):
+            client = clients[i]
+            count = expected_post_count[i]
+            with self.subTest(client=client):
+                response = client.post(
+                    reverse('posts:post_create'), data=self.form_data
+                )
+                if client == self.guest_client:
+                    self.assertRedirects(
+                        response, '/auth/login/?next=/create/'
+                    )
+                    self.assertFalse(
+                        Post.objects.filter(
+                            author=self.user,
+                            group=self.group,
+                            text=self.form_data['text'],
+                        ).exists()
+                    )
+                else:
+                    self.assertRedirects(
+                        response,
+                        reverse(
+                            'posts:profile', kwargs={'username': self.user}
+                        ),
+                    )
+                    self.assertTrue(
+                        Post.objects.filter(
+                            author=self.user,
+                            group=self.group,
+                            text=self.form_data['text'],
+                        ).exists()
+                    )
+                self.assertEqual(Post.objects.count(), count)
+                self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
 
 class PostEditFormTests(TestCase):
@@ -80,11 +88,8 @@ class PostEditFormTests(TestCase):
         cls.post = Post.objects.create(
             author=cls.user, text='Тестовое содержание поста', group=cls.group
         )
-        cls.form = PostForm(instance=cls.post)
-
-    def setUp(self):
-        self.authorized_client = Client()
-        self.authorized_client.force_login(PostEditFormTests.user)
+        cls.authorized_client = Client()
+        cls.authorized_client.force_login(PostEditFormTests.user)
 
     def test_edit_post_authorized(self):
         '''Тестируем редактирования поста авторизованным пользователем'''
@@ -101,11 +106,13 @@ class PostEditFormTests(TestCase):
             data=form_data,
             follow=True,
         )
-        modified_post = Post.objects.get(id=PostEditFormTests.post.id)
+        PostEditFormTests.post.refresh_from_db()
         self.assertEqual(Post.objects.count(), posts_count)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertEqual(modified_post.text, 'Отредактированный пост')
-        self.assertEqual(modified_post.group, PostEditFormTests.new_group)
+        self.assertEqual(PostEditFormTests.post.text, form_data['text'])
+        self.assertEqual(
+            PostEditFormTests.post.group, PostEditFormTests.new_group
+        )
         self.assertRedirects(
             response,
             reverse(

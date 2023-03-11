@@ -1,7 +1,7 @@
 from http import HTTPStatus
 
 from django.test import Client, TestCase
-
+from django.urls import reverse
 from posts.models import Group, Post, User
 
 
@@ -9,17 +9,13 @@ class PostURLTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # Создаем тестового пользователя
         cls.user = User.objects.create_user(username='user')
-        # Создаем тестового пользователя-автора
         cls.user_author = User.objects.create_user(username='Author')
-        # Создаем тестовую группу
         cls.group = Group.objects.create(
             title="Тестовая группа",
-            slug="Test_slag",
+            slug="Test_slug",
             description="Тестовое описание"
         )
-        # Создаем тестовый пост
         cls.post = Post.objects.create(
             text="Тестовый пост",
             author=cls.user_author,
@@ -27,12 +23,9 @@ class PostURLTests(TestCase):
         )
 
     def setUp(self):
-        # Создаём неавторизованный клиент
         self.guest_client = Client()
-        # Создаём клиент для авторизации тестовым пользователем
         self.authorized_client = Client()
         self.authorized_client.force_login(PostURLTests.user)
-        # Создаём клиент для авторизации тестовым пользователем-автором
         self.author_client = Client()
         self.author_client.force_login(PostURLTests.user_author)
 
@@ -82,7 +75,9 @@ class PostURLTests(TestCase):
         """Страница /create/ перенаправит неавторизованного'
         'пользователя на авторизацию"""
         response = self.guest_client.get('/create/', follow=True)
-        self.assertRedirects(response, '/auth/login/?next=/create/')
+        self.assertRedirects(
+            response, reverse('users:login') + '?next=/create/'
+        )
 
     def test_post_create_url_exist_on_authorized(self):
         """Проверка доступности страницы /create/'

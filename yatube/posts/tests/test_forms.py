@@ -29,45 +29,29 @@ class PostCreateFormTests(TestCase):
         cls.authorized_client.force_login(PostCreateFormTests.user)
 
     def test_create_post(self):
-        """Проверка создания поста гостем и
+        """Проверка создания поста
         авторизованным пользователем.
         """
-        clients = [self.guest_client, self.authorized_client]
-        expected_post_count = [self.post_count, self.post_count + 1]
-        for i in range(len(clients)):
-            client = clients[i]
-            count = expected_post_count[i]
-            with self.subTest(client=client):
-                response = client.post(
-                    reverse('posts:post_create'), data=self.form_data
-                )
-                if client == self.guest_client:
-                    self.assertRedirects(
-                        response, '/auth/login/?next=/create/'
-                    )
-                    self.assertFalse(
-                        Post.objects.filter(
-                            author=self.user,
-                            group=self.group,
-                            text=self.form_data['text'],
-                        ).exists()
-                    )
-                else:
-                    self.assertRedirects(
-                        response,
-                        reverse(
-                            'posts:profile', kwargs={'username': self.user}
-                        ),
-                    )
-                    self.assertTrue(
-                        Post.objects.filter(
-                            author=self.user,
-                            group=self.group,
-                            text=self.form_data['text'],
-                        ).exists()
-                    )
-                self.assertEqual(Post.objects.count(), count)
-                self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        form_data = {
+            'text': 'text',
+            'group': self.group.pk,
+        }
+        posts_count = Post.objects.count()
+        response = self.authorized_client.post(
+            reverse('posts:post_create'),
+            data=form_data,
+            follow=True
+        )
+        self.assertEqual(Post.objects.count(), posts_count + 1)
+        posts = Post.objects.exclude(id=self.post.id)
+        self.assertEqual(len(posts), 1)
+        post = posts[0]
+        self.assertEqual(post.text, form_data['text'])
+        self.assertEqual(post.group.id, form_data['group'])
+        self.assertEqual(post.author, self.user)
+        self.assertRedirects(
+            response, reverse('posts:profile', kwargs={'username': 'auth'})
+        )
 
 
 class PostEditFormTests(TestCase):

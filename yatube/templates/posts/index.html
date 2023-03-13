@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load thumbnail %}
 {% block title %}
   Последние обновления на сайте
 {% endblock %}
@@ -14,6 +15,9 @@
       <li>
         Дата публикации: {{ post.pub_date|date:"d E Y" }}
       </li>
+      {% thumbnail post.image "960x339" crop="center" upscale=True as im %}
+          <img class="card-img my-2" src="{{ im.url }}">
+      {% endthumbnail %}
     </ul>
     <p>{{ post.text }}</p>
 

@@ -20,8 +20,9 @@
                 {% endif %}
               </div>
               <div class="card-body">
-                <form method="post" href="{% url 'posts:post_create' %}">
+                <form method="post" enctype="multipart/form-data">
                   {% csrf_token %}
+                  {% for field in form %}
                   <div class="form-group row my-3 p-3">
                     <label for="id_text">
                       Текст поста

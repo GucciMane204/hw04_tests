@@ -12,7 +12,7 @@
             Редактировать запись
           </div>
           <div class="card-body">
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
               {% if form.errors %}
                 {% for field in form %}
                   {% for error in field.errors %}

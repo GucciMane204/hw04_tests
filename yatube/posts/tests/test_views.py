@@ -4,6 +4,7 @@ import tempfile
 from django import forms
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from posts.models import Comment, Group, Post, User
@@ -114,6 +115,7 @@ class PostPagesTests(TestCase):
 
     def test_views_guest_client(self):
         """Тестируем адреса для гостя"""
+        cache.clear()
         for name, template, filt in self.templates_guest:
             with self.subTest(name=name, template=template, filt=filt):
                 response = self.guest_client.get(name)
@@ -127,6 +129,7 @@ class PostPagesTests(TestCase):
 
     def test_views_author_client(self):
         """Тестируем адреса для автора"""
+        cache.clear()
         for name, template in self.templates_author:
             for value, expected in self.form_fields.items():
                 with self.subTest(name=name, template=template):
@@ -153,6 +156,17 @@ class PostPagesTests(TestCase):
         """Проверка доступности комментария"""
         response = self.guest_client.get(self.post_detail)
         self.assertIn('comments', response.context)
+
+    def test_cache_index(self):
+        '''Проверка кеша главной страницы'''
+        cache.clear()
+        response_1 = self.guest_client.get(self.post_index)
+        Post.objects.all().delete()
+        response_2 = self.guest_client.get(self.post_index)
+        self.assertEqual(response_1.content, response_2.content)
+        cache.clear()
+        response_3 = self.guest_client.get(self.post_index)
+        self.assertNotEqual(response_1.content, response_3.content)
 
 
 class PaginatorViewsTest(TestCase):
@@ -199,6 +213,7 @@ class PaginatorViewsTest(TestCase):
 
     def test_pagination(self):
         '''Тестируем паджинатор'''
+        cache.clear()
         for url, page_count in self.pages:
             with self.subTest(url=url):
                 response = self.client.get(url)

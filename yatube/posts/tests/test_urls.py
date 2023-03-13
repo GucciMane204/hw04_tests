@@ -1,5 +1,6 @@
 from http import HTTPStatus
 
+from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 from posts.models import Group, Post, User
@@ -31,6 +32,7 @@ class PostURLTests(TestCase):
 
     def test_url_exists_at_desired_location(self):
         """Проверка гостевым клиентом доступности страниц без авторизации"""
+        cache.clear()
         status_code_url_names = [
             reverse('posts:index'),
             reverse('posts:group_list', kwargs={'slug': self.post.group.slug}),
@@ -46,6 +48,7 @@ class PostURLTests(TestCase):
     def test_post_edit_url_exist_on_authorized(self):
         """Проверка доступности страницы /post/<int:post_id>/edit/'
         'автору поста"""
+        cache.clear()
         response = self.author_client.get(
             reverse('posts:post_edit', kwargs={'post_id': self.post.id})
         )
@@ -54,6 +57,7 @@ class PostURLTests(TestCase):
     def test_post_edit_url_redirect_authorized_on_post_detail(self):
         """Проверка, что страница /post/<int:post_id>/edit/ перенаправит'
         'авторизованного пользователя (не автора) на страницу поста"""
+        cache.clear()
         response = self.authorized_client.get(
             reverse('posts:post_edit', kwargs={'post_id': self.post.id}),
             follow=True)
@@ -62,6 +66,7 @@ class PostURLTests(TestCase):
     def test_post_edit_url_redirect_guest_on_login(self):
         """Страница /post/<int:post_id>/edit/ перенаправит неавторизованного'
         'пользователя на авторизацию"""
+        cache.clear()
         response = self.guest_client.get(
             reverse('posts:post_edit',
                     kwargs={'post_id': self.post.id}), follow=True)
@@ -72,6 +77,7 @@ class PostURLTests(TestCase):
     def test_post_create_url_redirect_guest_on_login(self):
         """Страница /create/ перенаправит неавторизованного'
         'пользователя на авторизацию"""
+        cache.clear()
         response = self.guest_client.get(
             reverse('posts:post_create'), follow=True)
         self.assertRedirects(
@@ -81,17 +87,20 @@ class PostURLTests(TestCase):
     def test_post_create_url_exist_on_authorized(self):
         """Проверка доступности страницы /create/'
         'для авторизованного пользователя"""
+        cache.clear()
         response = self.authorized_client.get(
             reverse('posts:post_create'))
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_for_un_existing_page(self):
         """Проверка недоступности несуществующей страницы"""
+        cache.clear()
         response = self.guest_client.get('/un_existing_page/')
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_urls_uses_correct_template(self):
         """Проверка используемых шаблонов для каждого адреса"""
+        cache.clear()
         templates_url_names = {
             reverse('posts:index'):
                 'posts/index.html',

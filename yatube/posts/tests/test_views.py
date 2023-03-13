@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
-from posts.models import Group, Post, User
+from posts.models import Comment, Group, Post, User
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -54,6 +54,9 @@ class PostPagesTests(TestCase):
             author=cls.author,
             group=cls.group,
             image=uploaded
+        )
+        cls.comment = Comment.objects.create(
+            post=cls.post, author=cls.author, text='это комментарий'
         )
         cls.post_index = reverse('posts:index')
         cls.post_detail = reverse(
@@ -145,6 +148,11 @@ class PostPagesTests(TestCase):
                     )
                     is_edit_context = response.context.get('is_edit')
                     self.assertTrue(is_edit_context)
+
+    def test_comments_in_post_detail(self):
+        """Проверка доступности комментария"""
+        response = self.guest_client.get(self.post_detail)
+        self.assertIn('comments', response.context)
 
 
 class PaginatorViewsTest(TestCase):

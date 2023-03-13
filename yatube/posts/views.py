@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import PostForm
+from .forms import CommentForm, PostForm
 from .models import Group, Post, User
 from .utils import make_page
 
@@ -39,13 +39,21 @@ def profile(request, username):
 
 
 def post_detail(request, post_id):
-    post = get_object_or_404(Post, pk=post_id)
-    count = post.author.posts.count()
-    context = {
-        'post': post,
-        'count': count,
-    }
-    return render(request, 'posts/post_detail.html', context)
+    post = get_object_or_404(
+        Post.objects.select_related('author', 'group'),
+        id=post_id
+    )
+    comments = post.comments.all().select_related('author')
+    form = CommentForm()
+    author = request.user.id
+    return render(
+        request,
+        'posts/post_detail.html',
+        {'post': post,
+         'author': author,
+         'form': form,
+         'comments': comments, }
+    )
 
 
 @login_required
@@ -54,6 +62,7 @@ def post_create(request):
         request.POST or None,
         files=request.FILES or None
     )
+    print(form.errors)
     if form.is_valid():
         post = form.save(commit=False)
         post.author = request.user
@@ -79,3 +88,15 @@ def post_edit(request, post_id):
         return redirect('posts:post_detail', post_id)
     return render(request, 'posts/create_post.html', {'form': form,
                   'is_edit': True})
+
+
+@login_required
+def add_comment(request, post_id):
+    # Получите пост и сохраните его в переменную post.
+    form = CommentForm(request.POST or None)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.post = get_object_or_404(Post, id=post_id)
+        comment.save()
+    return redirect('posts:post_detail', post_id=post_id)

@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from ..models import Group, Post, User
+from ..models import Comment, Group, Post, User
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -95,6 +95,51 @@ class PostCreateFormTests(TestCase):
                 image=f"posts/{form_data['image'].name}",
             ).exists()
         )
+
+    def test_add_comment_authorized_client(self):
+        """После проверки формы комментарий
+        авторизованного пользователя добавляется в пост
+        """
+        form_data = {
+            'text': 'comment_from_user',
+        }
+        comment_count = Comment.objects.count()
+        response = self.author_client.post(
+            reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
+            data=form_data,
+            follow=True,
+        )
+        self.assertRedirects(
+            response,
+            reverse('posts:post_detail', kwargs={'post_id': self.post.id}),
+        )
+        self.assertTrue(
+            Comment.objects.filter(text=form_data['text']).exists()
+        )
+        self.assertEqual(Comment.objects.count(), comment_count + 1)
+        self.assertContains(response, form_data['text'])
+
+    def test_add_comment_guest_client(self):
+        """комментировать посты может только
+        авторизованный пользователь;
+        """
+        form_data = {
+            'text': 'Комментарий гостя',
+        }
+        comment_count = Comment.objects.count()
+        response = self.guest_client.post(
+            reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
+            data=form_data,
+            follow=True,
+        )
+        self.assertRedirects(
+            response, '/auth/login/?next=/posts/' f'{self.post.id}/comment/'
+        )
+        self.assertFalse(
+            Comment.objects.filter(text=form_data['text']).exists()
+        )
+        self.assertEqual(Comment.objects.count(), comment_count)
+        self.assertNotContains(response, form_data['text'])
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)

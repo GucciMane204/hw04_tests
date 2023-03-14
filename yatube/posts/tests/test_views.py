@@ -3,11 +3,11 @@ import tempfile
 
 from django import forms
 from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
-from posts.models import Comment, Group, Post, User
+from posts.models import Comment, Follow, Group, Post, User
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -225,3 +225,55 @@ class PaginatorViewsTest(TestCase):
                     self.assertEqual(
                         len(response.context['page_obj']), page_count[1]
                     )
+
+
+class FollowTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Создаем автора поста
+        cls.author = User.objects.create_user(username='author')
+
+        # Создаем фолловера, клиента под него и логинимся в этом клиенте
+        cls.follower = User.objects.create_user(username='follower')
+        cls.follower_client = Client()
+        cls.follower_client.force_login(cls.follower)
+
+        # Создаем пользователя, клиента и логинимся в этом клиенте
+        cls.user = User.objects.create_user(username='user')
+        cls.user_client = Client()
+        cls.user_client.force_login(cls.user)
+
+        # Создаем пост
+        cls.post = Post.objects.create(
+            author=cls.author, text='Текст для проверки ленты'
+        )
+        cls.follow_url = reverse(
+            'posts:profile_follow', kwargs={'username': cls.author.username}
+        )
+
+    def test_can_following_and_unfollowing(self):
+        """Фолловер может подписаться или отписаться"""
+        follow_count = Follow.objects.count()
+        self.follower_client.get(self.follow_url)
+        self.assertEqual(Follow.objects.count(), follow_count + 1)
+        follow_count = Follow.objects.count()
+        self.follower_client.get(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': self.author.username},
+            )
+        )
+        self.assertEqual(Follow.objects.count(), follow_count - 1)
+
+    def test_follow_page_for_follower(self):
+        """Пост появляется на странице того, кто подписан"""
+        self.follower_client.get(self.follow_url)
+        response = self.follower_client.get(reverse('posts:follow_index'))
+        self.assertEqual(response.context['page_obj'][0], self.post)
+
+    def test_follow_page_for_user(self):
+        """Пост не появляется на странице того, кто не подписан"""
+        self.follower_client.get(self.follow_url)
+        response = self.user_client.get(reverse('posts:follow_index'))
+        self.assertEqual(len(response.context['page_obj']), 0)

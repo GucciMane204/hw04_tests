@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from ..models import Group, Post, User
+from ..models import Comment, Group, Post, User
 
 
 class PostModelTest(TestCase):
@@ -18,6 +18,9 @@ class PostModelTest(TestCase):
             text='Тестовый пост, длина символов больше пятнадцати',
             group=cls.group,
         )
+        cls.comment = Comment.objects.create(
+            post=cls.post, author=cls.author, text='это комментарий'
+        )
 
     def test_models_have_correct_object_names(self):
         """Проверяем, что у моделей корректно работает __str__."""
@@ -25,6 +28,7 @@ class PostModelTest(TestCase):
             str(PostModelTest.group): 'Тестовая группа',
             str(PostModelTest.post):
             'Тестовый пост, длина символов больше пятнадцати'[:15],
+            str(self.comment): 'это комментарий',
         }
         for field, expected_value in group_post.items():
             with self.subTest(field=field):
@@ -50,6 +54,7 @@ class PostModelTest(TestCase):
         field_help_texts = {
             'text': 'Текст нового поста',
             'group': 'Группа, к которой будет относиться пост',
+            'image': 'Картинка прикрипленная к посту'
         }
         for field, expected_value in field_help_texts.items():
             with self.subTest(field=field):

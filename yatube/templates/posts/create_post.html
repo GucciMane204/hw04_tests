@@ -1,66 +1,71 @@
 {% extends 'base.html' %}
 {% block title %}
-  {% if is_edit %}
-    Редактировать запись
-  {% else %}
-    Новая запись
-  {% endif %}
-{% endblock %}
-
+    {% if is_edit%}
+      Редактировать пост
+    {% else %}
+      Новый пост
+    {% endif %}
+{%endblock%}
 {% block content %}
-      <div class="container py-5">
-        <div class="row justify-content-center">
-          <div class="col-md-8 p-5">
-            <div class="card">
-              <div class="card-header">
-                {% if is_edit %}
-                  Редактировать запись
-                {% else %}
-                  Новая запись
-                {% endif %}
-              </div>
-              <div class="card-body">
-                <form method="post" enctype="multipart/form-data">
-                  {% csrf_token %}
-                  {% for field in form %}
-                  <div class="form-group row my-3 p-3">
-                    <label for="id_text">
-                      Текст поста
-                      <span class="required text-danger" >*</span>
-                    </label>
-                    <textarea name="text" cols="40" rows="10" class="form-control" required id="id_text">
-                    </textarea>
-                    <small id="id_text-help" class="form-text text-muted">
-                      Текст нового поста
+<div class="row justify-content-center">
+  <div class="col-md-8 p-5">
+    <div class="card">
+      <div class="card-header">
+          {% if is_edit%}
+          Редактировать пост
+          {% else %}
+          Новый пост
+          {% endif %}
+        </div>
+          <div class="card-body">
+            {# Этот блок будет показан, если в форме есть ошибки #}
+            {% load user_filters %}
+              {% if form.errors %}
+              {% for field in form %}
+                {% for error in field.errors %}
+                  <div class="alert alert-danger">
+                    {{ error|escape }}
+                  </div>
+                {% endfor %}
+              {% endfor %}
+              {% for error in form.non_field_errors %}
+                <div class="alert alert-danger">
+                  {{ error|escape }}
+                </div>
+              {% endfor %}
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data">
+              {% csrf_token %}
+              {% for field in form %}
+                <div class="form-group row my-3 p-3">
+                  <label for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                    {% if field.field.required %}
+                      <span class="required text-danger">*</span>
+                    {% endif %}
+                  </label>
+                  {{ field|addclass:'form-control' }}
+                  {% if field.help_text %}
+                    <small id="{{ field.id_for_label }}-help" class="form-text text-muted">
+                      {{ field.help_text|safe }}
                     </small>
-                  </div>
-                  <div class="form-group row my-3 p-3">
-                    <label for="id_group">
-                      Группа
-                    </label>
-                    <select name="group" class="form-control" id="id_group">
-                      <option value="" selected>---------</option>
-                    {% for group in groups %}
-                      <option value="{{ group.pk }}" selected>{{ group.title }}</option>
-                    {% endfor %}
-                    </select>
-                    <small id="id_group-help" class="form-text text-muted">
-                      Группа, к которой будет относиться пост
-                    </small>
-                  </div>
-                  <div class="d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">
-                      {% if is_edit %}
-                        Сохранить
-                      {% else %}
-                        Добавить
-                      {% endif %}
-                    </button>
-                  </div>
-                </form>
+                  {% endif %}
+                </div>
+              {% endfor %}
+              <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">
+                  {% if is_edit%}
+                  Сохранить
+                  {% else %}
+                  Добавить
+                  {% endif %}
+                </button>
               </div>
-            </div>
-          </div>
+          </form>
         </div>
       </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
